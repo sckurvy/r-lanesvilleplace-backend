@@ -1,53 +1,38 @@
-import express from "express";
-import multer from "multer"; // handles file uploads
-import cors from "cors";
-import fs from "fs";
+// regex-based slur filter
+const bannedPatterns = [
+  // n-word variants (hard + soft, leetspeak, symbols)
+  /\b(n[\W_]*[i1!|][\W_]*[gq9]{2,}[\W_]*[e3][\W_]*[r]+)\b/gi,
+  /\b(n[\W_]*[i1!|][\W_]*[gq9]+[\W_]*[a4]+)\b/gi,
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+  // f-slur
+  /\b(f[\W_]*[a4@][\W_]*[gq9]{1,2}[\W_]*[o0]*[\W_]*[t7]+)\b/gi,
 
-app.use(cors());
-app.use(express.json());
+  // beaner
+  /\b(b[\W_]*[e3][\W_]*[a4][\W_]*[n][\W_]*[e3][\W_]*[r]+)\b/gi,
 
-// store uploads in ./uploads folder
-const upload = multer({ dest: "uploads/" });
+  // spic
+  /\b(s[\W_]*[p][\W_]*[i1!|][\W_]*[c]+)\b/gi,
 
-// simple slur filter
-const bannedWords = ["nigger", "faggot"]; // expand as needed
+  // chink
+  /\b(c[\W_]*[h]+[\W_]*[i1!|][\W_]*[n][\W_]*[k]+)\b/gi,
+
+  // gook
+  /\b(g[\W_]*[o0]{2,}[\W_]*[k]+)\b/gi,
+
+  // kike
+  /\b(k[\W_]*[i1!|][\W_]*[k][\W_]*[e3]+)\b/gi,
+
+  // raghead
+  /\b(r[\W_]*[a4][\W_]*[gq9]+[\W_]*h[\W_]*[e3][\W_]*[a4][\W_]*[d]+)\b/gi,
+
+  // sandnigger
+  /\b(s[\W_]*[a4][\W_]*[n][\W_]*d[\W_]*n[\W_]*[i1!|][\W_]*[gq9]{2,}[\W_]*[e3][\W_]*[r]+)\b/gi,
+];
+
 function censor(text) {
   let safe = text;
-  for (let word of bannedWords) {
-    let regex = new RegExp(word, "gi");
-    safe = safe.replace(regex, "****");
+  for (let pattern of bannedPatterns) {
+    safe = safe.replace(pattern, "****");
   }
   return safe;
 }
-
-// in-memory posts (later swap to DB)
-let posts = [];
-
-// upload route
-app.post("/api/upload", upload.single("file"), (req, res) => {
-  const { name, caption, description } = req.body;
-
-  const post = {
-    id: Date.now(),
-    name: censor(name || "Anon"),
-    caption: censor(caption || ""),
-    description: censor(description || ""),
-    file: req.file ? `/uploads/${req.file.filename}` : null,
-  };
-
-  posts.push(post);
-  res.json({ success: true, post });
-});
-
-// serve uploaded files
-app.use("/uploads", express.static("uploads"));
-
-// get posts
-app.get("/api/posts", (req, res) => {
-  res.json(posts);
-});
-
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
